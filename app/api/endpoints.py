@@ -13,8 +13,6 @@ from app.models.response_models import LicenseListResponse
 
 router = APIRouter()
 
-router = APIRouter()
-
 @router.post("/lm/dto/total")
 async def total_licenses(data: LicenseRequest):
     try:
