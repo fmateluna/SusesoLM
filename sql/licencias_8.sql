@@ -50,16 +50,16 @@ select
 	cod_diagnostico_principal,
 	cod_diagnostico_secundario,
 	periodo ,
-	propensity_score_rn,
-	propensity_score_rn2,
-	propensity_score_frecuencia_mensual,
-	propensity_score_frecuencia_semanal,
-	propensity_score_otorgados_mensual,
-	propensity_score_otorgados_semanal,
-	propensity_score_ml,
+	--propensity_score_rn,
+	--propensity_score_rn2,
+	--propensity_score_frecuencia_mensual,
+	--propensity_score_frecuencia_semanal,
+	--propensity_score_otorgados_mensual,
+	--propensity_score_otorgados_semanal,
+	--propensity_score_ml,
 	propensity_score
 from
 	lme.df_propensity_score
 where
-	 rut_medico = :rut_medico
+	 rut_trabajador = :rut_trabajador
 	 AND fecha_emision BETWEEN :fecha_inicio AND :fecha_fin;

@@ -61,5 +61,4 @@ select
 from
 	lme.df_propensity_score
 where
-	 rut_medico = :rut_medico
-	 AND fecha_emision BETWEEN :fecha_inicio AND :fecha_fin;
+	 folio = :folio;

@@ -61,5 +61,5 @@ select
 from
 	lme.df_propensity_score
 where
-	 rut_medico = :rut_medico
+	 codigo_diagnostico_pronunciamiento = :codigo_diagnostico_pronunciamiento
 	 AND fecha_emision BETWEEN :fecha_inicio AND :fecha_fin;
