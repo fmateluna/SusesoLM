@@ -1,4 +1,4 @@
-from app.core.database import SessionLocal
+from app.core.database import SessionLM
 from sqlalchemy import text, exc
 from app.models.request_models import LicenseRequest, RegionRequest
 from datetime import date, datetime
@@ -123,7 +123,7 @@ def map_to_license_detail(row: dict) -> LicenseDetail:
 
 def execute_query(file_path: str, params: dict):
     """Ejecuta una consulta SQL desde un archivo con parámetros proporcionados."""
-    session = SessionLocal()
+    session = SessionLM()
     query = read_sql_file(file_path)
     try:
         result = session.execute(text(query), params).fetchall()

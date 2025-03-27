@@ -16,6 +16,15 @@ from app.models.request_models import DiagnosticoLicenseByRangeDateRequest, Doct
 from fastapi import APIRouter, HTTPException
 from app.models.response_models import LicenseDetail, LicenseListResponse
 
+from fastapi import APIRouter, HTTPException
+from app.models.request_models import ETLRequest
+from app.core.etl_services import ETLService
+from app.core.ports.adapters import InMemoryTaskRepository
+
+# Instanciar el repositorio y el servicio
+task_repository = InMemoryTaskRepository()
+etl_service = ETLService(task_repository)
+
 
 def set_default_dates(fecha_inicio: Optional[str], fecha_fin: Optional[str]) -> (str, str):
     """
@@ -121,6 +130,16 @@ async def licenses_by_region(data: RegionRequest):
     try:
         result = get_licenses_by_region(data.comuna_reposo, data.fecha_inicio, data.fecha_fin)
         return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+
+@router.post("/lm/etl")
+async def upload_etl(data: ETLRequest):
+    try:
+        return etl_service.start_etl_task(data)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

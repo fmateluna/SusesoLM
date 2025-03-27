@@ -21,4 +21,16 @@ SQLALCHEMY_DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}
 engine = create_engine(SQLALCHEMY_DATABASE_URL, pool_size=10, max_overflow=20, pool_timeout=30)
 
 # Crear una sesión para interactuar con la base de datos
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLM = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+import psycopg2
+from os import environ
+
+def get_db_etl_connection():
+    return psycopg2.connect(
+        host=environ['DB_ETL_HOST'],
+        port=environ['DB_ETL_PORT'],
+        dbname=environ['DB_ETL_NAME'],
+        user=environ['DB_ETL_USER'],
+        password=environ['DB_ETL_PASS']
+    )

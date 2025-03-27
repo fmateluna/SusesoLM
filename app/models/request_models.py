@@ -1,5 +1,5 @@
 # app/models/request_models.py
-from typing import Optional
+from typing import List, Optional
 from pydantic import BaseModel
 from datetime import date
 
@@ -36,16 +36,22 @@ class RegionRequest(BaseModel):
 
 class DoctorLicenseByRangeDateRequest(BaseModel):
     rut_medico: str
-    fecha_inicio: Optional[str] = "1900-01-01"  # Valor por defecto si no se envía
-    fecha_fin: Optional[str] = None  # Si no se envía, se asigna el valor actual en el controlador
+    fecha_inicio: Optional[str] = "1900-01-01"  
+    fecha_fin: Optional[str] = None  
 
 class TrabajadorLicenseByRangeDateRequest(BaseModel):
     rut_trabajador: str
-    fecha_inicio: Optional[str] = "1900-01-01"  # Valor por defecto si no se envía
-    fecha_fin: Optional[str] = None  # Si no se envía, se asigna el valor actual en el controlador
+    fecha_inicio: Optional[str] = "1900-01-01" 
+    fecha_fin: Optional[str] = None  
 
 class DiagnosticoLicenseByRangeDateRequest(BaseModel):
     codigo_diagnostico_pronunciamiento: str
-    fecha_inicio: Optional[str] = "1900-01-01"  # Valor por defecto si no se envía
-    fecha_fin: Optional[str] = None  # Si no se envía, se asigna el valor actual en el controlador
+    fecha_inicio: Optional[str] = "1900-01-01"  
+    fecha_fin: Optional[str] = None  
 
+### CARGA ETL ###
+
+
+class ETLRequest(BaseModel):
+    start_date: str
+    end_date: str
