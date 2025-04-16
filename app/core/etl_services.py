@@ -8,7 +8,7 @@ from sqlalchemy import text
 from app.core.ports.etl import TaskRepository
 from app.models.request_models import ETLRequest
 
-from app.core.database import SessionLM, get_db_etl_connection
+from app.core.database import SessionML, get_db_ETL_connection
 from sqlalchemy.exc import IntegrityError
 
 ### lógica principal del ETL, incluyendo la generación del hash y la ejecución asíncrona de la tarea. ###
@@ -22,6 +22,9 @@ class ETLService:
     
     def __init__(self, task_repository: TaskRepository):
         self.task_repository = task_repository
+        self.__id_licencias = set() 
+        self.__medicos = set()
+        self.__especialidades = set()
            
            
     def start_etl_task(self, etl_request: ETLRequest) -> dict:
@@ -42,7 +45,7 @@ class ETLService:
     def run_etl_task(self, etl_request: ETLRequest, task_id: str) -> None:
         try:
             self.task_repository.set_task_status(task_id, "in process", {"idtask": task_id, "record_process": 0})            
-            conn = get_db_etl_connection()
+            conn = get_db_ETL_connection()
             cursor = conn.cursor()
             
             # Definir la query base con segmentación por hora/minuto
@@ -125,7 +128,7 @@ class ETLService:
                 
                 
     def create_especialidad(self, sabana_fiscalizador_lme_row):      
-        session_especialidad = SessionLM()
+        session_especialidad = SessionML()
         
         try:
             # Manejar especialidad_profesional_medicos VALIDANDO REPLICAS
@@ -138,7 +141,7 @@ class ETLService:
 
             # Buscar si la especialidad ya existe
             result = session_especialidad.execute(text("""
-                SELECT id_especialidad_profesional FROM lm_dev.especialidad_profesional
+                SELECT id_especialidad_profesional FROM ml.especialidad_profesional
                 WHERE descripcion_especialidad_profesional = :esp_descripcion
             """), {'esp_descripcion': esp_descripcion})
             id_especialidad = result.scalar()
@@ -146,12 +149,12 @@ class ETLService:
             # Si no existe, insertarla
             if id_especialidad is None:
                 session_especialidad.execute(text("""
-                    INSERT INTO lm_dev.especialidad_profesional (descripcion_especialidad_profesional)
+                    INSERT INTO ml.especialidad_profesional (descripcion_especialidad_profesional)
                     VALUES (:esp_descripcion)
                     RETURNING id_especialidad_profesional
                 """), {'esp_descripcion': esp_descripcion})
                 id_especialidad = session_especialidad.execute(text("""
-                    SELECT id_especialidad_profesional FROM lm_dev.especialidad_profesional
+                    SELECT id_especialidad_profesional FROM ml.especialidad_profesional
                     WHERE descripcion_especialidad_profesional = :esp_descripcion
                 """), {'esp_descripcion': esp_descripcion}).scalar()
 
@@ -167,8 +170,8 @@ class ETLService:
             session_especialidad.close()
                      
             
-    def create_profesional(self, sabana_fiscalizador_lme_row):
-        session = SessionLM()
+    def create_profesionalidad(self, sabana_fiscalizador_lme_row):
+        session = SessionML()
         
         try:
             # Determinar la descripción de la profesionalidad
@@ -176,12 +179,13 @@ class ETLService:
             if tipo_profesional is None or tipo_profesional == '-' or str(tipo_profesional).strip() == '':
                 descripcion = 'No informada'
             else:
-                descripcion = str(tipo_profesional)
+                #TODO: Tema pendiente, no hay una descripcion del tipo profesional
+                descripcion = str(tipo_profesional) 
             descripcion = descripcion.title()
 
             # Buscar si la profesionalidad ya existe
             result = session.execute(text("""
-                SELECT id_profesionalidad FROM lm_dev.profesionalidad
+                SELECT id_profesionalidad FROM ml.profesionalidad
                 WHERE descripcion_profesionalidad = :descripcion
             """), {'descripcion': descripcion})
             id_profesionalidad = result.scalar()
@@ -189,13 +193,13 @@ class ETLService:
             # Si no existe, insertarla
             if id_profesionalidad is None:
                 session.execute(text("""
-                    INSERT INTO lm_dev.profesionalidad (descripcion_profesionalidad)
+                    INSERT INTO ml.profesionalidad (descripcion_profesionalidad)
                     VALUES (:descripcion)
                     RETURNING id_profesionalidad
                 """), {'descripcion': descripcion})
                 # Obtener el ID recién insertado
                 result = session.execute(text("""
-                    SELECT id_profesionalidad FROM lm_dev.profesionalidad
+                    SELECT id_profesionalidad FROM ml.profesionalidad
                     WHERE descripcion_profesionalidad = :descripcion
                 """), {'descripcion': descripcion})
                 id_profesionalidad = result.scalar()
@@ -212,120 +216,151 @@ class ETLService:
             session.close()       
             
     def setting_doctor(self, rut_medico, id_especialidad):
-        if rut_medico is not None:
-            session = SessionLM()
+       
+        if rut_medico is not None and id_especialidad is not None:
+            
+            if rut_medico in self.__medicos and id_especialidad in self.__especialidades:
+                return
+            
+            session = SessionML() 
             try:
-                # Intentar insertar en lm_dev.medicos
-                try:
+                # Consultar si el rut_medico ya existe en ml.medicos
+                result_medico = session.execute(text("""
+                    SELECT rut_medico 
+                    FROM ml.medicos 
+                    WHERE rut_medico = :rut_medico
+                """), {'rut_medico': rut_medico}).fetchone()
+                
+                # Si no existe, insertar en ml.medicos
+                if not result_medico:
                     session.execute(text("""
-                        INSERT INTO lm_dev.medicos (rut_medico)
+                        INSERT INTO ml.medicos (rut_medico)
                         VALUES (:rut_medico)
                     """), {'rut_medico': rut_medico})
                     session.commit()
-                except IntegrityError as e:
-                    session.rollback()
-                    print(f"Error al insertar en lm_dev.medicos: {e}")
-                
-                # Intentar insertar en lm_dev.especialidad_profesional_medicos
-                try:
+                    print(f"Insertado rut_medico {rut_medico} en ml.medicos")
+                #else:
+                #    print(f"El rut_medico {rut_medico} ya existe en ml.medicos")
+
+                # Consultar si la combinación id_especialidad y rut_medico ya existe en especialidad_profesional_medicos
+                result_especialidad = session.execute(text("""
+                    SELECT id_especialidad_profesional, rut_medico 
+                    FROM ml.especialidad_profesional_medicos 
+                    WHERE id_especialidad_profesional = :id_especialidad_profesional AND rut_medico = :rut_medico
+                """), {'id_especialidad_profesional': id_especialidad, 'rut_medico': rut_medico}).fetchone()
+                self.__medicos.add(rut_medico)
+                # Si no existe, insertar en especialidad_profesional_medicos
+                if not result_especialidad:
                     session.execute(text("""
-                        INSERT INTO lm_dev.especialidad_profesional_medicos (id_especialidad_profesional, rut_medico)
+                        INSERT INTO ml.especialidad_profesional_medicos (id_especialidad_profesional, rut_medico)
                         VALUES (:id_especialidad, :rut_medico)
                     """), {'id_especialidad': id_especialidad, 'rut_medico': rut_medico})
                     session.commit()
-                except IntegrityError as e:
-                    session.rollback()
-
+                    print(f"Insertada especialidad {id_especialidad} para rut_medico {rut_medico}")
+                #else:
+                    #print(f"La especialidad {id_especialidad} para rut_medico {rut_medico} ya existe")
+                self.__especialidades.add(id_especialidad)
+                    
+            except IntegrityError as e:
+                session.rollback()
+                print(f"Error de integridad: {e}")
             except Exception as e:
                 session.rollback()
+                print(f"Error inesperado: {e}")
             finally:
-                session.close()     
+                session.close()
+
+
                                
 
     def upload_to_lm(self, sabana_fiscalizador_lme_row):
-        
-        id_especialidad = self.create_especialidad(sabana_fiscalizador_lme_row)
-        rut_medico = sabana_fiscalizador_lme_row['rut_medico']
-        self.setting_doctor(rut_medico, id_especialidad)
-        
-        session = SessionLM()
-        try:
-
-            # Insertar en la tabla propensity_score VALIDANDO REPLICAS
-            propensity_values = {
-                'id_lic': sabana_fiscalizador_lme_row['id_lic'],
-                'folio': sabana_fiscalizador_lme_row['folio'],
-                'rn': sabana_fiscalizador_lme_row['propensity_score_rn'],
-                'rn2': sabana_fiscalizador_lme_row['propensity_score_rn2'],
-                'frecuencia_mensual': sabana_fiscalizador_lme_row['propensity_score_frecuencia_mensual'],
-                'frecuencia_semanal': sabana_fiscalizador_lme_row['propensity_score_frecuencia_semanal'],
-                'otorgados_mensual': sabana_fiscalizador_lme_row['propensity_score_otorgados_mensual'],
-                'otorgados_semanal': sabana_fiscalizador_lme_row['propensity_score_otorgados_semanal'],
-                'ml': sabana_fiscalizador_lme_row['propensity_score_ml'],
-                'score': sabana_fiscalizador_lme_row['propensity_score']
-            }
-            session.execute(text("""
-                INSERT INTO lm_dev.propensity_score (
-                    id_lic, folio, rn, rn2, frecuencia_mensual, frecuencia_semanal,
-                    otorgados_mensual, otorgados_semanal, ml, score
-                ) VALUES (
-                    :id_lic, :folio, :rn, :rn2, :frecuencia_mensual, :frecuencia_semanal,
-                    :otorgados_mensual, :otorgados_semanal, :ml, :score
-                )
-            """), propensity_values)
-
-
-            id_profesionalidad = self.create_profesional(sabana_fiscalizador_lme_row)
-
-            # Insertar en medicos si rut_medico no es NULL VALIDANDO REPLICAS
+            id_especialidad = self.create_especialidad(sabana_fiscalizador_lme_row)
             rut_medico = sabana_fiscalizador_lme_row['rut_medico']
-            if rut_medico is not None:
-                # Insertar en profesionalidad_medicos VALIDANDO REPLICAS
-                if id_profesionalidad is not None:
-                    session.execute(text("""
-                        INSERT INTO lm_dev.profesionalidad_medicos (id_profesionalidad, rut_medico)
-                        VALUES (:id_profesionalidad, :rut_medico)
-                        ON CONFLICT (id_profesionalidad, rut_medico) DO NOTHING;
-                    """), {'id_profesionalidad': id_profesionalidad, 'rut_medico': rut_medico})
-           
-            # Insertar en la tabla licencias VALIDANDO REPLICAS
-            session.execute(text("""
-                INSERT INTO lm_dev.licencias (
-                    id_lic, operador, ccaf, entidad_pagadora, folio, fecha_emision, empleador_adscrito,
-                    codigo_interno_prestador, comuna_prestador, fecha_ultimo_estado, ultimo_estado,
-                    rut_trabajador, sexo_trabajador, edad_trabajador, tipo_reposo, dias_reposo,
-                    fecha_inicio_reposo, comuna_reposo, tipo_licencia, rut_medico,
-                    tipo_licencia_pronunciamiento, codigo_continuacion_pronunciamiento,
-                    dias_autorizados_pronunciamiento, codigo_diagnostico_pronunciamiento,
-                    codigo_autorizacion_pronunciamiento, causa_rechazo_pronunciamiento,
-                    tipo_reposo_pronunciamiento, derecho_a_subsidio_pronunciamiento, rut_empleador,
-                    calidad_trabajador, actividad_laboral_trabajador, ocupacion, entidad_pagadora_zona_c,
-                    fecha_recepcion_empleador, regimen_previsional, entidad_pagadora_subsidio,
-                    comuna_laboral, comuna_uso_compin, cantidad_de_pronunciamientos, cantidad_de_zonas_d,
-                    secuencia_estados, cod_diagnostico_principal, cod_diagnostico_secundario, periodo
-                ) VALUES (
-                    :id_lic, :operador, :ccaf, :entidad_pagadora, :folio, :fecha_emision, :empleador_adscrito,
-                    :codigo_interno_prestador, :comuna_prestador, :fecha_ultimo_estado, :ultimo_estado,
-                    :rut_trabajador, :sexo_trabajador, :edad_trabajador, :tipo_reposo, :dias_reposo,
-                    :fecha_inicio_reposo, :comuna_reposo, :tipo_licencia, :rut_medico,
-                    :tipo_licencia_pronunciamiento, :codigo_continuacion_pronunciamiento,
-                    :dias_autorizados_pronunciamiento, :codigo_diagnostico_pronunciamiento,
-                    :codigo_autorizacion_pronunciamiento, :causa_rechazo_pronunciamiento,
-                    :tipo_reposo_pronunciamiento, :derecho_a_subsidio_pronunciamiento, :rut_empleador,
-                    :calidad_trabajador, :actividad_laboral_trabajador, :ocupacion, :entidad_pagadora_zona_C,
-                    :fecha_recepcion_empleador, :regimen_previsional, :entidad_pagadora_subsidio,
-                    :comuna_laboral, :comuna_uso_compin, :cantidad_de_pronunciamientos, :cantidad_de_zonas_d,
-                    :secuencia_estados, :cod_diagnostico_principal, :cod_diagnostico_secundario, :periodo
-                )
-            """), sabana_fiscalizador_lme_row)
-            # Confirmar todas las inserciones y relaciones
-            session.commit()
-            print(f"Inserción  id_lic: {sabana_fiscalizador_lme_row['id_lic']} - folio {sabana_fiscalizador_lme_row['folio']} ")
+            self.setting_doctor(rut_medico, id_especialidad)
+            
+            session =  SessionML()
+            try:
+                # Insertar en la tabla propensity_score VALIDANDO REPLICAS
+                propensity_values = {
+                    'id_lic': sabana_fiscalizador_lme_row['id_lic'],
+                    'folio': sabana_fiscalizador_lme_row['folio'],
+                    'rn': sabana_fiscalizador_lme_row['propensity_score_rn'],
+                    'rn2': sabana_fiscalizador_lme_row['propensity_score_rn2'],
+                    'frecuencia_mensual': sabana_fiscalizador_lme_row['propensity_score_frecuencia_mensual'],
+                    'frecuencia_semanal': sabana_fiscalizador_lme_row['propensity_score_frecuencia_semanal'],
+                    'otorgados_mensual': sabana_fiscalizador_lme_row['propensity_score_otorgados_mensual'],
+                    'otorgados_semanal': sabana_fiscalizador_lme_row['propensity_score_otorgados_semanal'],
+                    'ml': sabana_fiscalizador_lme_row['propensity_score_ml'],
+                    'score': sabana_fiscalizador_lme_row['propensity_score']
+                }
+                session.execute(text("""
+                    INSERT INTO ml.propensity_score (
+                        id_lic, folio, rn, rn2, frecuencia_mensual, frecuencia_semanal,
+                        otorgados_mensual, otorgados_semanal, ml, score
+                    ) VALUES (
+                        :id_lic, :folio, :rn, :rn2, :frecuencia_mensual, :frecuencia_semanal,
+                        :otorgados_mensual, :otorgados_semanal, :ml, :score
+                    ) 
+                """), propensity_values)
 
-        except psycopg2.errors.UniqueViolation as e:
-            session.rollback()
-            print(f"Registro id_lic: {sabana_fiscalizador_lme_row['id_lic']} - folio {sabana_fiscalizador_lme_row['folio']}  duplicado ignorado: {e} ")
-        except Exception as e:
-            session.rollback()
-            print(f"Registro id_lic: {sabana_fiscalizador_lme_row['id_lic']} - folio {sabana_fiscalizador_lme_row['folio']}  Error durante la inserción: {e}")
-            raise
+                id_profesionalidad = self.create_profesionalidad(sabana_fiscalizador_lme_row)
+
+                # Insertar en profesionalidad_medicos VALIDANDO REPLICAS
+                if rut_medico is not None and id_profesionalidad is not None:
+                    session.execute(text("""
+                        INSERT INTO ml.profesionalidad_medicos (id_profesionalidad, rut_medico)
+                        VALUES (:id_profesionalidad, :rut_medico)
+                        ON CONFLICT (id_profesionalidad, rut_medico) DO NOTHING
+                    """), {'id_profesionalidad': id_profesionalidad, 'rut_medico': rut_medico})
+
+                # Validar id_lic en memoria antes de consultar la base de datos
+                id_lic = sabana_fiscalizador_lme_row['id_lic']
+                if id_lic not in self.__id_licencias:
+                    # Insertar en la tabla licencias VALIDANDO REPLICAS
+                    session.execute(text("""
+                        INSERT INTO ml.licencias (
+                            id_lic, operador, ccaf, entidad_pagadora, folio, fecha_emision, empleador_adscrito,
+                            codigo_interno_prestador, comuna_prestador, fecha_ultimo_estado, ultimo_estado,
+                            rut_trabajador, sexo_trabajador, edad_trabajador, tipo_reposo, dias_reposo,
+                            fecha_inicio_reposo, comuna_reposo, tipo_licencia, rut_medico,
+                            tipo_licencia_pronunciamiento, codigo_continuacion_pronunciamiento,
+                            dias_autorizados_pronunciamiento, codigo_diagnostico_pronunciamiento,
+                            codigo_autorizacion_pronunciamiento, causa_rechazo_pronunciamiento,
+                            tipo_reposo_pronunciamiento, derecho_a_subsidio_pronunciamiento, rut_empleador,
+                            calidad_trabajador, actividad_laboral_trabajador, ocupacion, entidad_pagadora_zona_c,
+                            fecha_recepcion_empleador, regimen_previsional, entidad_pagadora_subsidio,
+                            comuna_laboral, comuna_uso_compin, cantidad_de_pronunciamientos, cantidad_de_zonas_d,
+                            secuencia_estados, cod_diagnostico_principal, cod_diagnostico_secundario, periodo
+                        ) VALUES (
+                            :id_lic, :operador, :ccaf, :entidad_pagadora, :folio, :fecha_emision, :empleador_adscrito,
+                            :codigo_interno_prestador, :comuna_prestador, :fecha_ultimo_estado, :ultimo_estado,
+                            :rut_trabajador, :sexo_trabajador, :edad_trabajador, :tipo_reposo, :dias_reposo,
+                            :fecha_inicio_reposo, :comuna_reposo, :tipo_licencia, :rut_medico,
+                            :tipo_licencia_pronunciamiento, :codigo_continuacion_pronunciamiento,
+                            :dias_autorizados_pronunciamiento, :codigo_diagnostico_pronunciamiento,
+                            :codigo_autorizacion_pronunciamiento, :causa_rechazo_pronunciamiento,
+                            :tipo_reposo_pronunciamiento, :derecho_a_subsidio_pronunciamiento, :rut_empleador,
+                            :calidad_trabajador, :actividad_laboral_trabajador, :ocupacion, :entidad_pagadora_zona_C,
+                            :fecha_recepcion_empleador, :regimen_previsional, :entidad_pagadora_subsidio,
+                            :comuna_laboral, :comuna_uso_compin, :cantidad_de_pronunciamientos, :cantidad_de_zonas_d,
+                            :secuencia_estados, :cod_diagnostico_principal, :cod_diagnostico_secundario, :periodo
+                        ) ON CONFLICT (id_lic) DO NOTHING
+                    """), sabana_fiscalizador_lme_row)
+                    # Agregar id_lic al arreglo privado
+                    self.__id_licencias.add(id_lic)
+                    print(f"Procesado id_lic: {id_lic} - folio: {sabana_fiscalizador_lme_row['folio']}")
+                else:
+                    print(f"Atención  id_lic: {id_lic} - folio: {sabana_fiscalizador_lme_row['folio']} duplicado en memoria, ignorado")
+
+                # Confirmar todas las inserciones y relaciones
+                session.commit()
+
+            except IntegrityError as e:
+                session.rollback()
+                print(f"Error de integridad para id_lic: {sabana_fiscalizador_lme_row['id_lic']} - folio: {sabana_fiscalizador_lme_row['folio']}: {e}")
+            except Exception as e:
+                session.rollback()
+                print(f"Error inesperado para id_lic: {sabana_fiscalizador_lme_row['id_lic']} - folio: {sabana_fiscalizador_lme_row['folio']}: {e}")
+                raise
+            finally:
+                session.close()

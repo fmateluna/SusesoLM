@@ -1,14 +1,16 @@
 -- SQLBook: Code
 -- Endpoint: /lm/dto/total
--- Obtiene el total de licencias emitidas por el mismo profesional en un rango de tiempo
+-- Obtiene el total de licencias emitidas por el mismo profesional del folio, en un rango de tiempo
 SELECT
-    a.rut_medico,
+    l.rut_medico,
     COUNT(0) AS total_licencias,
-    a.cod_diagnostico_principal
+    l.cod_diagnostico_principal
 FROM
-    lme.df_propensity_score a
+    ml.propensity_score as a,    
+    ml.licencias as l     
 WHERE
     a.folio = :folio
+    and l.folio = a.folio     
 GROUP BY
-    a.rut_medico,
-    a.cod_diagnostico_principal;
+    l.rut_medico,
+    l.cod_diagnostico_principal;
