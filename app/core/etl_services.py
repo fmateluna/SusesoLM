@@ -50,7 +50,7 @@ class ETLService:
             conn = get_db_ETL_connection()
             cursor = conn.cursor()
             
-            output_dir = os.path.join(os.getcwd(), task_id)
+            output_dir = os.path.join(os.getcwd(), "log",  task_id)
             os.makedirs(output_dir, exist_ok=True)
             current_time_str = datetime.now().strftime("%d%m%Y_%H%M")
             csv_file_path = os.path.join(output_dir, f"registros_{current_time_str}.csv")            
