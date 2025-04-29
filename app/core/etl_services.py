@@ -2,7 +2,9 @@ import hashlib
 import time
 import json
 import threading
-
+import os
+import csv
+from datetime import datetime, timedelta
 import psycopg2
 from sqlalchemy import text
 from app.core.ports.etl import TaskRepository
@@ -48,6 +50,11 @@ class ETLService:
             conn = get_db_ETL_connection()
             cursor = conn.cursor()
             
+            output_dir = os.path.join(os.getcwd(), task_id)
+            os.makedirs(output_dir, exist_ok=True)
+            current_time_str = datetime.now().strftime("%d%m%Y_%H%M")
+            csv_file_path = os.path.join(output_dir, f"registros_{current_time_str}.csv")            
+            
             # Definir la query base con segmentación por hora/minuto
             base_query = """
             SELECT 
@@ -80,13 +87,12 @@ class ETLService:
             WHERE fecha_emision >= '{start_time}' AND fecha_emision < '{end_time}'
             """
 
-            from datetime import datetime, timedelta
-
             start_date = datetime.strptime(etl_request.start_date, '%Y-%m-%d')
             end_date = datetime.strptime(etl_request.end_date, '%Y-%m-%d')
             
             current_time = start_date
             record_count = 0
+            header_written = False
             
             while current_time < end_date:
                 start_time = current_time
@@ -104,6 +110,14 @@ class ETLService:
                     for row in rows:
                         sabana_fiscalizador_lme_row = dict(zip(column_names, row))          
                         sabana_fiscalizador_lme_row['empleador_adscrito'] = 0 if sabana_fiscalizador_lme_row['empleador_adscrito'] == "No" else 1
+                        
+                        with open(csv_file_path, 'a', newline='', encoding='utf-8') as csvfile:
+                            writer = csv.DictWriter(csvfile, fieldnames=sabana_fiscalizador_lme_row.keys())
+                            if not header_written:
+                                writer.writeheader()
+                                header_written = True
+                            writer.writerow(sabana_fiscalizador_lme_row)
+                        
                                       
                         self.upload_to_lm(sabana_fiscalizador_lme_row)
                     record_count += len(rows)
