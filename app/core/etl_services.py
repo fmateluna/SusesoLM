@@ -13,6 +13,10 @@ from app.models.request_models import ETLRequest
 from app.core.database import SessionML, get_db_ETL_connection
 from sqlalchemy.exc import IntegrityError
 
+import logging
+
+
+
 ### lógica principal del ETL, incluyendo la generación del hash y la ejecución asíncrona de la tarea. ###
 
 def generate_task_id(etl_request: ETLRequest) -> str:    
@@ -27,6 +31,14 @@ class ETLService:
         self.__id_licencias = set() 
         self.__medicos = set()
         self.__especialidades = set()
+        # Configurar logging
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(levelname)s - %(message)s',
+            filename=task_repository._get_log_file(),  
+            filemode='a' 
+        )
+                
            
            
     def start_etl_task(self, etl_request: ETLRequest) -> dict:
@@ -49,11 +61,11 @@ class ETLService:
             self.task_repository.set_task_status(task_id, "in process", {"idtask": task_id, "record_process": 0})            
             conn = get_db_ETL_connection()
             cursor = conn.cursor()
-            
-            output_dir = os.path.join(os.getcwd(), "log",  task_id)
+            current_time_str = datetime.now().strftime("%Y%m%d_%H%M")
+            output_dir = os.path.join(os.getcwd(), "etl",  current_time_str)
             os.makedirs(output_dir, exist_ok=True)
-            current_time_str = datetime.now().strftime("%d%m%Y_%H%M")
-            csv_file_path = os.path.join(output_dir, f"registros_{current_time_str}.csv")            
+
+            csv_file_path = os.path.join(output_dir, f"registros_{task_id}.csv")            
             
             # Definir la query base con segmentación por hora/minuto
             base_query = """
@@ -178,7 +190,7 @@ class ETLService:
 
         except Exception as e:
             session_especialidad.rollback()
-            print(f"Error al crear o buscar especialidad: {e}")
+            logging.info(f"Error al crear o buscar especialidad: {e}")
             raise
         finally:
             session_especialidad.close()
@@ -224,7 +236,7 @@ class ETLService:
 
         except Exception as e:
             session.rollback()
-            print(f"Error al crear o buscar profesionalidad: {e}")
+            logging.info(f"Error al crear o buscar profesionalidad: {e}")
             raise
         finally:
             session.close()       
@@ -252,9 +264,9 @@ class ETLService:
                         VALUES (:rut_medico)
                     """), {'rut_medico': rut_medico})
                     session.commit()
-                    print(f"Insertado rut_medico {rut_medico} en ml.medicos")
+                    logging.info(f"Insertado rut_medico {rut_medico} en ml.medicos")
                 #else:
-                #    print(f"El rut_medico {rut_medico} ya existe en ml.medicos")
+                #    logging.info(f"El rut_medico {rut_medico} ya existe en ml.medicos")
 
                 # Consultar si la combinación id_especialidad y rut_medico ya existe en especialidad_profesional_medicos
                 result_especialidad = session.execute(text("""
@@ -270,17 +282,17 @@ class ETLService:
                         VALUES (:id_especialidad, :rut_medico)
                     """), {'id_especialidad': id_especialidad, 'rut_medico': rut_medico})
                     session.commit()
-                    print(f"Insertada especialidad {id_especialidad} para rut_medico {rut_medico}")
+                    logging.info(f"Insertada especialidad {id_especialidad} para rut_medico {rut_medico}")
                 #else:
-                    #print(f"La especialidad {id_especialidad} para rut_medico {rut_medico} ya existe")
+                    #logging.info(f"La especialidad {id_especialidad} para rut_medico {rut_medico} ya existe")
                 self.__especialidades.add(id_especialidad)
                     
             except IntegrityError as e:
                 session.rollback()
-                print(f"Error de integridad: {e}")
+                logging.info(f"Error de integridad: {e}")
             except Exception as e:
                 session.rollback()
-                print(f"Error inesperado: {e}")
+                logging.info(f"Error inesperado: {e}")
             finally:
                 session.close()
 
@@ -362,19 +374,19 @@ class ETLService:
                     """), sabana_fiscalizador_lme_row)
                     # Agregar id_lic al arreglo privado
                     self.__id_licencias.add(id_lic)
-                    print(f"Procesado id_lic: {id_lic} - folio: {sabana_fiscalizador_lme_row['folio']}")
+                    logging.info(f"Procesado id_lic: {id_lic} - folio: {sabana_fiscalizador_lme_row['folio']}")
                 else:
-                    print(f"Atención  id_lic: {id_lic} - folio: {sabana_fiscalizador_lme_row['folio']} duplicado en memoria, ignorado")
-
+                    logging.info(f"Atención  id_lic: {id_lic} - folio: {sabana_fiscalizador_lme_row['folio']} duplicado en memoria, ignorado")
+                print(id_lic)
                 # Confirmar todas las inserciones y relaciones
                 session.commit()
 
             except IntegrityError as e:
                 session.rollback()
-                print(f"Error de integridad para id_lic: {sabana_fiscalizador_lme_row['id_lic']} - folio: {sabana_fiscalizador_lme_row['folio']}: {e}")
+                logging.info(f"Error de integridad para id_lic: {sabana_fiscalizador_lme_row['id_lic']} - folio: {sabana_fiscalizador_lme_row['folio']}: {e}")
             except Exception as e:
                 session.rollback()
-                print(f"Error inesperado para id_lic: {sabana_fiscalizador_lme_row['id_lic']} - folio: {sabana_fiscalizador_lme_row['folio']}: {e}")
+                logging.info(f"Error inesperado para id_lic: {sabana_fiscalizador_lme_row['id_lic']} - folio: {sabana_fiscalizador_lme_row['folio']}: {e}")
                 raise
             finally:
                 session.close()

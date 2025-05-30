@@ -3,8 +3,10 @@
 from app.core.ports.etl import TaskRepository
 
 
-class InMemoryTaskRepository(TaskRepository):
-    def __init__(self):
+class InMemoryTaskRepository(TaskRepository ):
+    
+    def __init__(self, log_file: str):
+        super().__init__(log_file)
         self.task_status = {}
     
     def get_task_status(self, task_id: str) -> dict:

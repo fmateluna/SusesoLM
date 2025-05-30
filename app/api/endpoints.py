@@ -22,7 +22,7 @@ from app.core.etl_services import ETLService
 from app.core.ports.adapters import InMemoryTaskRepository
 
 # Instanciar el repositorio y el servicio
-task_repository = InMemoryTaskRepository()
+task_repository = InMemoryTaskRepository("etl_api.log")
 etl_service = ETLService(task_repository)
 
 
