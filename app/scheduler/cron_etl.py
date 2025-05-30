@@ -92,8 +92,7 @@ class CronConfigHandler(FileSystemEventHandler):
     def load_cron(self):
         with open(CONFIG_PATH, "r") as f:
             config = json.load(f)
-        logging.info("[CRON]ETL Le definicion en JSON de configuracion y Ejecuto primer ETL")
-        start_scheduled_etl()    
+        logging.info("[CRON]ETL Le definicion en JSON de configuracion y Ejecuto primer ETL")            
         self.cron_expr = config["times"]["cron"]
         self.cron = croniter(self.cron_expr, datetime.now())
         logging.info(f"[CRON] Cargado: {self.cron_expr}")
