@@ -26,18 +26,19 @@ def generate_task_id(etl_request: ETLRequest) -> str:
 
 class ETLService:
     
-    def __init__(self, task_repository: TaskRepository):
+    def __init__(self, task_repository: TaskRepository,  config_log :bool = False):
         self.task_repository = task_repository
         self.__id_licencias = set() 
         self.__medicos = set()
         self.__especialidades = set()
         # Configurar logging
-        logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(levelname)s - %(message)s',
-            filename=task_repository._get_log_file(),  
-            filemode='a' 
-        )
+        if not config_log:
+            logging.basicConfig(
+                level=logging.INFO,
+                format='%(asctime)s - %(levelname)s - %(message)s',
+                filename=task_repository._get_log_file(),  
+                filemode='a' 
+            )
                 
            
            
@@ -377,7 +378,7 @@ class ETLService:
                     logging.info(f"Procesado id_lic: {id_lic} - folio: {sabana_fiscalizador_lme_row['folio']}")
                 else:
                     logging.info(f"Atención  id_lic: {id_lic} - folio: {sabana_fiscalizador_lme_row['folio']} duplicado en memoria, ignorado")
-                print(id_lic)
+                # print(id_lic)
                 # Confirmar todas las inserciones y relaciones
                 session.commit()
 

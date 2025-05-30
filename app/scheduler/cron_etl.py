@@ -14,18 +14,9 @@ from app.models.request_models import ETLRequest
 import logging
 
 # Configurar logging
-
-
+# seteo ruta del json que configura frecuencia del cron
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 CONFIG_PATH = BASE_DIR / "cron_etl_config.json"
-
-
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    filename="cron_etl.log",  
-    filemode='a' 
-)
 
 from datetime import datetime, timedelta
 from croniter import croniter
@@ -55,7 +46,7 @@ def obtener_rango_desde_cron(cron_expr: str, fecha_base: datetime = None):
     # Calcular próxima ejecución cron
     cron_prox = croniter(cron_expr, fecha_base)
     fecha_proxima_ejecucion = cron_prox.get_next(datetime).replace(hour=0, minute=0, second=0, microsecond=0)
-    logging.info("Calculo de rango de ETL - CRON")
+    logging.info("[CRON]Calculo de rango de ETL - CRON")
     # Impresiones informativas
     logging.info(f"Hoy: {fecha_base.date()}")
     logging.info(f"Cron configura ejecución los días: {nombre_dia_cron} (#{cron_dia_semana})")
@@ -85,10 +76,11 @@ def start_scheduled_etl():
 
     task_repo = InMemoryTaskRepository("cron_etl.log")
 
-    etl_service = ETLService(task_repository=task_repo)
+    #con config_log=True , para que separe el log definido, es decir filename="cron_etl.log"  
+    etl_service = ETLService(task_repository=task_repo, config_log=True)
     etl_service.start_etl_task(etl_request)
 
-    logging.info("ETL ejecutada exitosamente")
+    logging.info("[CRON]ETL ejecutada exitosamente")
 
 class CronConfigHandler(FileSystemEventHandler):
     def __init__(self, task_func):
@@ -100,19 +92,19 @@ class CronConfigHandler(FileSystemEventHandler):
     def load_cron(self):
         with open(CONFIG_PATH, "r") as f:
             config = json.load(f)
-        logging.info("ETL Le definicion en JSON de configuracion y Ejecuto primer ETL")
+        logging.info("[CRON]ETL Le definicion en JSON de configuracion y Ejecuto primer ETL")
         start_scheduled_etl()    
         self.cron_expr = config["times"]["cron"]
         self.cron = croniter(self.cron_expr, datetime.now())
-        print(f"[CRON] Cargado: {self.cron_expr}")
+        logging.info(f"[CRON] Cargado: {self.cron_expr}")
 
     def schedule_next_run(self):
         self.next_run = self.cron.get_next(datetime)
-        print(f"[CRON] Próxima ejecución: {self.next_run}")
+        logging.info(f"[CRON] Próxima ejecución: {self.next_run}")
 
     def on_modified(self, event):
         if Path(event.src_path).resolve() == CONFIG_PATH.resolve():
-            print("[CRON] Cambio detectado en config_cron.json")
+            logging.info("[CRON] Cambio detectado en config_cron.json")
             with self.lock:
                 self.load_cron()
                 self.schedule_next_run()
@@ -132,6 +124,13 @@ class CronConfigHandler(FileSystemEventHandler):
         thread.start()
 
 def run_cron_scheduler(task_func):
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        filename="cron_etl.log",  
+        filemode='a' 
+    )
+
     #Carga Inicial
     #threading.Thread(target=task_func).start()
     
