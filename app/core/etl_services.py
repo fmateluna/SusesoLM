@@ -70,34 +70,70 @@ class ETLService:
             
             # Definir la query base con segmentación por hora/minuto
             base_query = """
+            
             SELECT 
-                id_lic, operador, ccaf, entidad_pagadora, folio, fecha_emision, 
-                empleador_adscrito, codigo_interno_prestador, comuna_prestador, 
-                fecha_ultimo_estado, ultimo_estado, rut_trabajador, sexo_trabajador, 
-                edad_trabajador, tipo_reposo, dias_reposo, fecha_inicio_reposo, 
-                comuna_reposo, tipo_licencia, rut_medico, especialidad_profesional, 
-                tipo_profesional, zbtipo_licencia_entidad AS "tipo_licencia_pronunciamiento", 
-                zbcodigo_continuacion AS "codigo_continuacion_pronunciamiento", 
-                zbdias_autorizados AS "dias_autorizados_pronunciamiento", 
-                zbcodigo_diagnostico AS "codigo_diagnostico_pronunciamiento", 
-                zbcodigo_autorizacion AS "codigo_autorizacion_pronunciamiento", 
-                zbcausa_rechazo AS "causa_rechazo_pronunciamiento", 
-                zbtipo_reposo AS "tipo_reposo_pronunciamiento", 
-                zbderecho_a_subsidio AS "derecho_a_subsidio_pronunciamiento", 
-                rut_empleador, calidad_trabajador, actividad_laboral_trabajador, 
-                ocupacion, entidad_pagadora2 AS "entidad_pagadora_zona_C", 
-                fecha_recepcion_empleador, regimen_previsional, 
-                entidad_pagadora_subsidio, comuna_laboral, comuna_uso_compin, 
-                cantidad_de_pronunciamientos, cantidad_de_zonas_d, 
-                secuencia_estados, cod_diagnostico_principal, 
-                cod_diagnostico_secundario, periodo, NULL AS "propensity_score_rn", 
-                NULL AS "propensity_score_rn2", NULL AS "propensity_score_frecuencia_mensual", 
-                NULL AS "propensity_score_frecuencia_semanal", 
-                NULL AS "propensity_score_otorgados_mensual", 
-                NULL AS "propensity_score_otorgados_semanal", 
-                NULL AS "propensity_score_ml", NULL AS "propensity_score"
-            FROM lme.sabana_fiscalizador_lme
-            WHERE fecha_emision >= '{start_time}' AND fecha_emision < '{end_time}'
+                lic.id_lic,
+                com.marca_otorgamiento,
+                lic.operador,
+                lic.ccaf,
+                lic.entidad_pagadora,
+                lic.folio,
+                lic.fecha_emision,
+                lic.empleador_adscrito,
+                lic.codigo_interno_prestador,
+                lic.comuna_prestador,
+                lic.fecha_ultimo_estado,
+                lic.ultimo_estado,
+                lic.rut_trabajador,
+                lic.sexo_trabajador,
+                lic.edad_trabajador,
+                lic.tipo_reposo,
+                lic.dias_reposo,
+                lic.fecha_inicio_reposo,
+                lic.comuna_reposo,
+                lic.tipo_licencia,
+                lic.rut_medico,
+                lic.especialidad_profesional,
+                lic.tipo_profesional,
+                lic.zbtipo_licencia_entidad AS tipo_licencia_pronunciamiento,
+                lic.zbcodigo_continuacion AS codigo_continuacion_pronunciamiento,
+                lic.zbdias_autorizados AS dias_autorizados_pronunciamiento,
+                lic.zbcodigo_diagnostico AS codigo_diagnostico_pronunciamiento,
+                lic.zbcodigo_autorizacion AS codigo_autorizacion_pronunciamiento,
+                lic.zbcausa_rechazo AS causa_rechazo_pronunciamiento,
+                lic.zbtipo_reposo AS tipo_reposo_pronunciamiento,
+                lic.zbderecho_a_subsidio AS derecho_a_subsidio_pronunciamiento,
+                lic.rut_empleador,
+                lic.calidad_trabajador,
+                lic.actividad_laboral_trabajador,
+                lic.ocupacion,
+                lic.entidad_pagadora2 AS entidad_pagadora_zona_c,
+                lic.fecha_recepcion_empleador,
+                lic.regimen_previsional,
+                lic.entidad_pagadora_subsidio,
+                lic.comuna_laboral,
+                lic.comuna_uso_compin,
+                lic.cantidad_de_pronunciamientos,
+                lic.cantidad_de_zonas_d,
+                lic.secuencia_estados,
+                lic.cod_diagnostico_principal,
+                lic.cod_diagnostico_secundario,
+                lic.periodo,
+                NULL AS propensity_score_rn,
+                NULL AS propensity_score_rn2,
+                NULL AS propensity_score_frecuencia_mensual,
+                NULL AS propensity_score_frecuencia_semanal,
+                NULL AS propensity_score_otorgados_mensual,
+                NULL AS propensity_score_otorgados_semanal,
+                NULL AS propensity_score_ml,
+                NULL AS propensity_score
+            FROM lme.sabana_fiscalizador_lme lic
+            LEFT JOIN lme.sabana_complementaria com
+                ON lic.folio = com.folio AND lic.rut_trabajador = com.rut_trabajador
+            WHERE lic.fecha_emision BETWEEN '{start_time}' AND '{end_time}';
+
+
+
             """
 
             start_date = datetime.strptime(etl_request.start_date, '%Y-%m-%d')
@@ -357,7 +393,8 @@ class ETLService:
                             calidad_trabajador, actividad_laboral_trabajador, ocupacion, entidad_pagadora_zona_c,
                             fecha_recepcion_empleador, regimen_previsional, entidad_pagadora_subsidio,
                             comuna_laboral, comuna_uso_compin, cantidad_de_pronunciamientos, cantidad_de_zonas_d,
-                            secuencia_estados, cod_diagnostico_principal, cod_diagnostico_secundario, periodo
+                            secuencia_estados, cod_diagnostico_principal, cod_diagnostico_secundario, periodo,
+                            marca_otorgamiento
                         ) VALUES (
                             :id_lic, :operador, :ccaf, :entidad_pagadora, :folio, :fecha_emision, :empleador_adscrito,
                             :codigo_interno_prestador, :comuna_prestador, :fecha_ultimo_estado, :ultimo_estado,
@@ -367,10 +404,11 @@ class ETLService:
                             :dias_autorizados_pronunciamiento, :codigo_diagnostico_pronunciamiento,
                             :codigo_autorizacion_pronunciamiento, :causa_rechazo_pronunciamiento,
                             :tipo_reposo_pronunciamiento, :derecho_a_subsidio_pronunciamiento, :rut_empleador,
-                            :calidad_trabajador, :actividad_laboral_trabajador, :ocupacion, :entidad_pagadora_zona_C,
+                            :calidad_trabajador, :actividad_laboral_trabajador, :ocupacion, :entidad_pagadora_zona_c,
                             :fecha_recepcion_empleador, :regimen_previsional, :entidad_pagadora_subsidio,
                             :comuna_laboral, :comuna_uso_compin, :cantidad_de_pronunciamientos, :cantidad_de_zonas_d,
-                            :secuencia_estados, :cod_diagnostico_principal, :cod_diagnostico_secundario, :periodo
+                            :secuencia_estados, :cod_diagnostico_principal, :cod_diagnostico_secundario, :periodo,
+                            :marca_otorgamiento
                         ) ON CONFLICT (id_lic) DO NOTHING
                     """), sabana_fiscalizador_lme_row)
                     # Agregar id_lic al arreglo privado

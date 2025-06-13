@@ -85,8 +85,10 @@ def start_scheduled_etl():
 class CronConfigHandler(FileSystemEventHandler):
     def __init__(self, task_func):
         self.task_func = task_func
+        #leo Configuracion
         self.load_cron()
         self.lock = threading.Lock()
+        #Ejecuto ETL
         self.schedule_next_run()
 
     def load_cron(self):
@@ -115,6 +117,7 @@ class CronConfigHandler(FileSystemEventHandler):
                 now = datetime.now()
                 with self.lock:
                     if now >= self.next_run:
+                        logging.info("[CRON] Reinicio Periodo")
                         threading.Thread(target=self.task_func).start()
                         self.schedule_next_run()
                 time.sleep(1)
