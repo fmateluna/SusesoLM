@@ -15,8 +15,6 @@ from sqlalchemy.exc import IntegrityError
 
 import logging
 
-
-
 ### lógica principal del ETL, incluyendo la generación del hash y la ejecución asíncrona de la tarea. ###
 
 def generate_task_id(etl_request: ETLRequest) -> str:    
@@ -416,6 +414,7 @@ class ETLService:
                     logging.info(f"Procesado id_lic: {id_lic} - folio: {sabana_fiscalizador_lme_row['folio']}")
                 else:
                     logging.info(f"Atención  id_lic: {id_lic} - folio: {sabana_fiscalizador_lme_row['folio']} duplicado en memoria, ignorado")
+                self.save_diagnostico_especialidad(id_lic, sabana_fiscalizador_lme_row['cod_diagnostico_principal'], sabana_fiscalizador_lme_row['especialidad_profesional'])
                 # print(id_lic)
                 # Confirmar todas las inserciones y relaciones
                 session.commit()
@@ -429,3 +428,44 @@ class ETLService:
                 raise
             finally:
                 session.close()
+                
+    def save_diagnostico_especialidad(self, id_lic, cod_diagnostico, especialidad_profesional):
+        session = SessionML()
+
+        try:
+
+            result = session.execute(text("""
+                SELECT 1 FROM ml.licencia_diagnostico_especialidad
+                WHERE id_licencia = :id_lic
+            """), {'id_lic': id_lic})
+
+            existe = result.scalar()
+
+            # Si no existe, insertar
+            if not existe:
+                session.execute(text("""
+                    INSERT INTO ml.licencia_diagnostico_especialidad (
+                        id_licencia,
+                        cod_diagnostico,
+                        especialidad_medico
+                    ) VALUES (
+                        :id_lic,
+                        :cod_diagnostico,
+                        :especialidad
+                    )
+                """), {
+                    'id_lic': id_lic,
+                    'cod_diagnostico': cod_diagnostico,
+                    'especialidad': especialidad_profesional
+                })
+
+            # Confirmar transacción
+            session.commit()
+
+        except Exception as e:
+            session.rollback()
+            logging.info(f"Error al guardar diagnostico/especialidad para reglas de negocio - licencia {id_lic}: {e}")
+            raise
+
+        finally:
+            session.close()                
