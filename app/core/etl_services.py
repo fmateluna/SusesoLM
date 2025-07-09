@@ -341,28 +341,6 @@ class ETLService:
             
             session =  SessionML()
             try:
-                # Insertar en la tabla propensity_score VALIDANDO REPLICAS
-                propensity_values = {
-                    'id_lic': sabana_fiscalizador_lme_row['id_lic'],
-                    'folio': sabana_fiscalizador_lme_row['folio'],
-                    'rn': sabana_fiscalizador_lme_row['propensity_score_rn'],
-                    'rn2': sabana_fiscalizador_lme_row['propensity_score_rn2'],
-                    'frecuencia_mensual': sabana_fiscalizador_lme_row['propensity_score_frecuencia_mensual'],
-                    'frecuencia_semanal': sabana_fiscalizador_lme_row['propensity_score_frecuencia_semanal'],
-                    'otorgados_mensual': sabana_fiscalizador_lme_row['propensity_score_otorgados_mensual'],
-                    'otorgados_semanal': sabana_fiscalizador_lme_row['propensity_score_otorgados_semanal'],
-                    'ml': sabana_fiscalizador_lme_row['propensity_score_ml'],
-                    'score': sabana_fiscalizador_lme_row['propensity_score']
-                }
-                session.execute(text("""
-                    INSERT INTO ml.propensity_score (
-                        id_lic, folio, rn, rn2, frecuencia_mensual, frecuencia_semanal,
-                        otorgados_mensual, otorgados_semanal, ml, score
-                    ) VALUES (
-                        :id_lic, :folio, :rn, :rn2, :frecuencia_mensual, :frecuencia_semanal,
-                        :otorgados_mensual, :otorgados_semanal, :ml, :score
-                    ) 
-                """), propensity_values)
 
                 id_profesionalidad = self.create_profesionalidad(sabana_fiscalizador_lme_row)
 
