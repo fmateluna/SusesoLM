@@ -78,6 +78,8 @@ def start_scheduled_etl():
 
     #con config_log=True , para que separe el log definido, es decir filename="cron_etl.log"  
     etl_service = ETLService(task_repository=task_repo, config_log=True)
+    
+    #El rango de YYYY-MM-DD 00:00:00 y YYYY-MM-DD 23:59:59, ocurre dentro del servicio ETL
     etl_service.start_etl_task(etl_request)
 
     logging.info("[CRON]ETL ejecutada exitosamente")
