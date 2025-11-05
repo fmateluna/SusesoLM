@@ -12,7 +12,20 @@ from app.core.services import (
     get_licenses_by_diagnosis, 
     get_licenses_by_region
 )
-from app.models.request_models import DiagnosticoLicenseByRangeDateRequest, DoctorLicenseByRangeDateRequest, LicenseByRangeDateRequest, LicenseRequest, DoctorLicenseRequest, NoFundamentoRequest, FundamentoIndicatorRequest, DiagnosisRequest, RegionRequest, TrabajadorLicenseByRangeDateRequest
+
+from app.models.request_models import (
+    DiagnosticoLicenseByRangeDateRequest, 
+    DoctorLicenseByRangeDateRequest, 
+    LicenseByRangeDateRequest, 
+    LicenseRequest, 
+    DoctorLicenseRequest, 
+    NoFundamentoRequest, 
+    FundamentoIndicatorRequest, 
+    DiagnosisRequest, 
+    RegionRequest, 
+    TrabajadorLicenseByRangeDateRequest
+)
+
 from fastapi import APIRouter, HTTPException
 from app.models.response_models import LicenseDetail, LicenseListResponse
 
