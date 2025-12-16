@@ -23,7 +23,6 @@ SQLALCHEMY_DATABASE_URL = (
     f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 )
 
-
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
     pool_size=10,
@@ -52,7 +51,7 @@ SessionML = sessionmaker(
 
 engine_etl = create_engine(
     SQLALCHEMY_DATABASE_URL,
-    poolclass=None,  # 🔥 SIN POOL
+    poolclass=None, 
     connect_args={
         "options": (
             "-c statement_timeout=0 "
