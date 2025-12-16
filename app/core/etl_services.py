@@ -57,7 +57,7 @@ class ETLService:
         try:
             # Obtener IP y puerto desde variables de entorno, con valores por defecto
             api_ip = os.getenv('DB_ML_HOST', '192.168.150.84')
-            api_port = os.getenv('API_ML_PORT', '9000')
+            api_port = os.getenv('API_ML_PORT', '8000')
             api_url = f'http://{api_ip}:{api_port}/lm/ml/score/'
             
             payload = {
